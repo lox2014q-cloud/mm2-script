@@ -1,7 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
 
 -- ==========================================
 -- 1. НАСТРОЙКИ
@@ -17,10 +16,12 @@ local function getPlayerRole(player)
     local backpack = player:FindFirstChild("Backpack")
     local character = player.Character
     
+    -- Проверка на Мардера
     if (backpack and backpack:FindFirstChild("Knife")) or 
        (character and character:FindFirstChild("Knife")) then
         return "Murderer"
     end
+    -- Проверка на Шерифа
     if (backpack and backpack:FindFirstChild("Gun")) or 
        (character and character:FindFirstChild("Gun")) then
         return "Sheriff"
@@ -105,7 +106,7 @@ local function getClosestPlayerToMouse()
     return closest
 end
 
--- Хук (безопасный)
+-- Безопасный хук
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
@@ -142,7 +143,7 @@ screenGui.Name = "MM2_Client"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Главное окно (ВЫСОТА УВЕЛИЧЕНА ДО 200)
+-- Главное окно (ВЫСОТА 200)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0, 220, 0, 200) 
