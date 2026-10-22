@@ -16,12 +16,10 @@ local function getPlayerRole(player)
     local backpack = player:FindFirstChild("Backpack")
     local character = player.Character
     
-    -- Проверка на Мардера
     if (backpack and backpack:FindFirstChild("Knife")) or 
        (character and character:FindFirstChild("Knife")) then
         return "Murderer"
     end
-    -- Проверка на Шерифа
     if (backpack and backpack:FindFirstChild("Gun")) or 
        (character and character:FindFirstChild("Gun")) then
         return "Sheriff"
@@ -81,7 +79,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ==========================================
--- 3. SILENT AIM (ЛОГИКА)
+-- 3. SILENT AIM
 -- ==========================================
 local function getClosestPlayerToMouse()
     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
@@ -136,17 +134,16 @@ end)
 setreadonly(mt, true)
 
 -- ==========================================
--- 4. СОЗДАНИЕ GUI
+-- 4. СОЗДАНИЕ GUI (ИСПРАВЛЕНО)
 -- ==========================================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MM2_Client"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Главное окно (ВЫСОТА 200)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 220, 0, 200) 
+mainFrame.Size = UDim2.new(0, 220, 0, 230) -- Высота 230
 mainFrame.Position = UDim2.new(0, 20, 0, 20)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.BorderSizePixel = 0
@@ -180,7 +177,6 @@ local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 8)
 titleCorner.Parent = title
 
--- Линия
 local accentLine = Instance.new("Frame")
 accentLine.Size = UDim2.new(1, 0, 0, 2)
 accentLine.Position = UDim2.new(0, 0, 0, 30)
@@ -223,11 +219,11 @@ toggleBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Кнопка Silent Aim
+-- Кнопка Silent Aim (теперь с отступом)
 local silentBtn = Instance.new("TextButton")
 silentBtn.Name = "SilentAimToggle"
 silentBtn.Size = UDim2.new(1, -20, 0, 35)
-silentBtn.Position = UDim2.new(0, 10, 0, 90)
+silentBtn.Position = UDim2.new(0, 10, 0, 90) -- Позиция 90
 silentBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
 silentBtn.BorderSizePixel = 0
 silentBtn.Text = "Silent Aim: ВЫКЛ"
@@ -258,7 +254,7 @@ silentBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Подсказка
+-- Подсказка (в самом низу)
 local hint = Instance.new("TextLabel")
 hint.Size = UDim2.new(1, -20, 0, 20)
 hint.Position = UDim2.new(0, 10, 1, -25)
