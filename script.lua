@@ -7,6 +7,8 @@ local LocalPlayer = Players.LocalPlayer
 -- ==========================================
 local espEnabled = true
 local silentAimEnabled = false
+local antiFlingEnabled = false
+local flingEnabled = false
 local espHighlights = {}
 
 -- ==========================================
@@ -48,38 +50,68 @@ local function updateESP(player, color)
     espHighlights[player] = highlight
 end
 
-RunService.RenderStepped:Connect(function()
-    if not espEnabled then
-        for player, highlight in pairs(espHighlights) do
-            if highlight and highlight.Parent then
-                highlight:Destroy()
-            end
-        end
-        espHighlights = {}
-        return
-    end
-
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        if not player.Character then continue end
-        
-        local role = getPlayerRole(player)
-        local color
-        
-        if role == "Murderer" then
-            color = Color3.fromRGB(255, 0, 0)
-        elseif role == "Sheriff" then
-            color = Color3.fromRGB(0, 0, 255)
-        else
-            color = Color3.fromRGB(0, 255, 0)
-        end
-        
-        updateESP(player, color)
+-- ==========================================
+-- 3. АНТИ-ФЛИНГ (Защита)
+-- ==========================================
+RunService.Heartbeat:Connect(function()
+    if not antiFlingEnabled then return end
+    if not LocalPlayer.Character then return end
+    
+    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    -- Если скорость слишком высокая (признак флинга)
+    if hrp.AssemblyLinearVelocity.Magnitude > 100 then
+        -- Сбрасываем скорость и вращение
+        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
 end)
 
 -- ==========================================
--- 3. SILENT AIM
+-- 4. ФЛИНГ (Атака)
+-- ==========================================
+local function getClosestPlayer()
+    local closest = nil
+    local closestDist = math.huge
+    local myPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myPos then return nil end
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then continue end
+        if not player.Character then continue end
+        local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+
+        local dist = (hrp.Position - myPos.Position).Magnitude
+        if dist < closestDist then
+            closestDist = dist
+            closest = player
+        end
+    end
+    return closest
+end
+
+RunService.Heartbeat:Connect(function()
+    if not flingEnabled then return end
+    if not LocalPlayer.Character then return end
+    
+    local myHrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return end
+    
+    local target = getClosestPlayer()
+    if target and target.Character then
+        local targetHrp = target.Character:FindFirstChild("HumanoidRootPart")
+        if targetHrp then
+            -- Телепортируемся к цели и крутимся (вызывает флинг)
+            myHrp.CFrame = targetHrp.CFrame * CFrame.new(0, 0, 1)
+            myHrp.AssemblyAngularVelocity = Vector3.new(9999, 9999, 9999)
+        end
+    end
+end)
+
+-- ==========================================
+-- 5. ЛОГИКА SILENT AIM
 -- ==========================================
 local function getClosestPlayerToMouse()
     local mousePos = game:GetService("UserInputService"):GetMouseLocation()
@@ -104,7 +136,6 @@ local function getClosestPlayerToMouse()
     return closest
 end
 
--- Безопасный хук
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
@@ -134,7 +165,7 @@ end)
 setreadonly(mt, true)
 
 -- ==========================================
--- 4. СОЗДАНИЕ GUI (ИСПРАВЛЕНО)
+-- 6. СОЗДАНИЕ GUI
 -- ==========================================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "MM2_Client"
@@ -143,7 +174,7 @@ screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 220, 0, 230) -- Высота 230
+mainFrame.Size = UDim2.new(0, 220, 0, 310) -- Увеличили высоту до 310
 mainFrame.Position = UDim2.new(0, 20, 0, 20)
 mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 mainFrame.BorderSizePixel = 0
@@ -184,77 +215,103 @@ accentLine.BackgroundColor3 = Color3.fromRGB(90, 140, 255)
 accentLine.BorderSizePixel = 0
 accentLine.Parent = mainFrame
 
+-- Функция для создания кнопок (чтобы не дублировать код)
+local function createButton(name, text, yPos, isActive)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(1, -20, 0, 35)
+    btn.Position = UDim2.new(0, 10, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    btn.BorderSizePixel = 0
+    btn.Text = text
+    btn.TextSize = 14
+    btn.Font = Enum.Font.Gotham
+    btn.Parent = mainFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Parent = btn
+    
+    return btn, stroke
+end
+
 -- Кнопка ESP
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Name = "ESP_Toggle"
-toggleBtn.Size = UDim2.new(1, -20, 0, 35)
-toggleBtn.Position = UDim2.new(0, 10, 0, 45)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-toggleBtn.BorderSizePixel = 0
-toggleBtn.Text = "ESP: ВКЛ"
-toggleBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-toggleBtn.TextSize = 14
-toggleBtn.Font = Enum.Font.Gotham
-toggleBtn.Parent = mainFrame
+local espBtn, espStroke = createButton("ESP_Toggle", "ESP: ВКЛ", 45, espEnabled)
+espBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+espStroke.Color = Color3.fromRGB(0, 255, 0)
 
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 6)
-btnCorner.Parent = toggleBtn
-
-local btnStroke = Instance.new("UIStroke")
-btnStroke.Color = Color3.fromRGB(0, 255, 0)
-btnStroke.Thickness = 1
-btnStroke.Parent = toggleBtn
-
-toggleBtn.MouseButton1Click:Connect(function()
+espBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     if espEnabled then
-        toggleBtn.Text = "ESP: ВКЛ"
-        toggleBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-        btnStroke.Color = Color3.fromRGB(0, 255, 0)
+        espBtn.Text = "ESP: ВКЛ"
+        espBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+        espStroke.Color = Color3.fromRGB(0, 255, 0)
     else
-        toggleBtn.Text = "ESP: ВЫКЛ"
-        toggleBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
-        btnStroke.Color = Color3.fromRGB(255, 0, 0)
+        espBtn.Text = "ESP: ВЫКЛ"
+        espBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+        espStroke.Color = Color3.fromRGB(255, 0, 0)
     end
 end)
 
--- Кнопка Silent Aim (теперь с отступом)
-local silentBtn = Instance.new("TextButton")
-silentBtn.Name = "SilentAimToggle"
-silentBtn.Size = UDim2.new(1, -20, 0, 35)
-silentBtn.Position = UDim2.new(0, 10, 0, 90) -- Позиция 90
-silentBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-silentBtn.BorderSizePixel = 0
-silentBtn.Text = "Silent Aim: ВЫКЛ"
-silentBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
-silentBtn.TextSize = 14
-silentBtn.Font = Enum.Font.Gotham
-silentBtn.Parent = mainFrame
+-- Кнопка Silent Aim
+local aimBtn, aimStroke = createButton("SilentAimToggle", "Silent Aim: ВЫКЛ", 90, silentAimEnabled)
+aimBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+aimStroke.Color = Color3.fromRGB(255, 0, 0)
 
-local silentCorner = Instance.new("UICorner")
-silentCorner.CornerRadius = UDim.new(0, 6)
-silentCorner.Parent = silentBtn
-
-local silentStroke = Instance.new("UIStroke")
-silentStroke.Color = Color3.fromRGB(255, 0, 0)
-silentStroke.Thickness = 1
-silentStroke.Parent = silentBtn
-
-silentBtn.MouseButton1Click:Connect(function()
+aimBtn.MouseButton1Click:Connect(function()
     silentAimEnabled = not silentAimEnabled
     if silentAimEnabled then
-        silentBtn.Text = "Silent Aim: ВКЛ"
-        silentBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-        silentStroke.Color = Color3.fromRGB(0, 255, 0)
+        aimBtn.Text = "Silent Aim: ВКЛ"
+        aimBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+        aimStroke.Color = Color3.fromRGB(0, 255, 0)
     else
-        silentBtn.Text = "Silent Aim: ВЫКЛ"
-        silentBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
-        silentStroke.Color = Color3.fromRGB(255, 0, 0)
+        aimBtn.Text = "Silent Aim: ВЫКЛ"
+        aimBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+        aimStroke.Color = Color3.fromRGB(255, 0, 0)
     end
 end)
 
--- Подсказка (в самом низу)
+-- Кнопка Anti-Fling
+local antiFlingBtn, antiFlingStroke = createButton("AntiFlingToggle", "Anti-Fling: ВЫКЛ", 135, antiFlingEnabled)
+antiFlingBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+antiFlingStroke.Color = Color3.fromRGB(255, 0, 0)
+
+antiFlingBtn.MouseButton1Click:Connect(function()
+    antiFlingEnabled = not antiFlingEnabled
+    if antiFlingEnabled then
+        antiFlingBtn.Text = "Anti-Fling: ВКЛ"
+        antiFlingBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+        antiFlingStroke.Color = Color3.fromRGB(0, 255, 0)
+    else
+        antiFlingBtn.Text = "Anti-Fling: ВЫКЛ"
+        antiFlingBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+        antiFlingStroke.Color = Color3.fromRGB(255, 0, 0)
+    end
+end)
+
+-- Кнопка Fling
+local flingBtn, flingStroke = createButton("FlingToggle", "Fling: ВЫКЛ", 180, flingEnabled)
+flingBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+flingStroke.Color = Color3.fromRGB(255, 0, 0)
+
+flingBtn.MouseButton1Click:Connect(function()
+    flingEnabled = not flingEnabled
+    if flingEnabled then
+        flingBtn.Text = "Fling: ВКЛ"
+        flingBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
+        flingStroke.Color = Color3.fromRGB(0, 255, 0)
+    else
+        flingBtn.Text = "Fling: ВЫКЛ"
+        flingBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
+        flingStroke.Color = Color3.fromRGB(255, 0, 0)
+    end
+end)
+
+-- Подсказка
 local hint = Instance.new("TextLabel")
 hint.Size = UDim2.new(1, -20, 0, 20)
 hint.Position = UDim2.new(0, 10, 1, -25)
